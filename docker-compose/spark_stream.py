@@ -14,9 +14,13 @@ spark = SparkSession.builder \
 
 spark.sparkContext.setLogLevel("WARN")
 
-# Load trained pipeline (TF-IDF + Naive Bayes)
-pipeline = joblib.load("/opt/bitnami/spark/work/model/sentiment_model.pkl")
-pipeline_broadcast = spark.sparkContext.broadcast(pipeline)
+# Load vectorizer and SVM model
+vectorizer = joblib.load("/opt/bitnami/spark/work/model/tfidf_vectorizer.pkl")
+svm_model = joblib.load("/opt/bitnami/spark/work/model/svm_sentiment_model.pkl")
+
+# Broadcast both
+vectorizer_broadcast = spark.sparkContext.broadcast(vectorizer)
+svm_model_broadcast = spark.sparkContext.broadcast(svm_model)
 
 # Kafka JSON schema
 schema = StructType([
@@ -26,15 +30,21 @@ schema = StructType([
 ])
 
 # Define UDF to predict sentiment
+# Define UDF to predict sentiment
 def predict_sentiment(text):
     if text and len(text.strip()) > 2:
         try:
-            prediction = pipeline_broadcast.value.predict([text])
-            return str(prediction[0])
+            # Vectorize first
+            X_vec = vectorizer_broadcast.value.transform([text])
+            # Then predict
+            prediction = svm_model_broadcast.value.predict(X_vec)
+            label = "POSITIVE" if prediction[0] == 1 else "NEGATIVE"
+            return label
         except Exception as e:
             print(f"Prediction error: {e}")
             return "error"
-    return "unknown"
+    return "NEUTRAL"
+
 
 # Register UDF
 predict_udf = udf(predict_sentiment, StringType())
