@@ -17,7 +17,7 @@ spark.sparkContext.setLogLevel("WARN")
 
 # Load vectorizer and SVM model
 vectorizer = joblib.load("/opt/bitnami/spark/work/model/tfidf_vectorizer.pkl")
-svm_model = joblib.load("/opt/bitnami/spark/work/model/svm_sentiment_model.pkl")
+svm_model = joblib.load("/opt/bitnami/spark/work/model/nb_sentiment_model.pkl")
 
 # Broadcast both
 vectorizer_broadcast = spark.sparkContext.broadcast(vectorizer)
@@ -52,12 +52,17 @@ def predict_sentiment(text):
         try:
             X_vec = vectorizer_broadcast.value.transform([text])
             prediction = svm_model_broadcast.value.predict(X_vec)
-            label = "POSITIVE" if prediction[0] == 1 else "NEGATIVE"
-            return label
+            if prediction[0] == 1:
+                return "POSITIVE"
+            elif prediction[0] == 0:
+                return "NEGATIVE"
+            else:
+                return "NEUTRAL"
         except Exception as e:
             print(f"Prediction error: {e}")
             return "error"
     return "NEUTRAL"
+
 
 # Register UDF for prediction
 predict_udf = udf(predict_sentiment, StringType())
