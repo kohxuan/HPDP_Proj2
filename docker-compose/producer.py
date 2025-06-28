@@ -10,7 +10,7 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-# List of video IDs
+# List of YouTube video IDs to stream comments from
 VIDEO_IDS = [
     "0VM-5VM__5U",
     "NnqTib39sao",
@@ -21,11 +21,11 @@ VIDEO_IDS = [
     "xMpIbRtg2HU",
 ]
 
-# Initialize downloader
+# Initialize the comment downloader
 downloader = YoutubeCommentDownloader()
-sent_ids = set()  # avoid sending same comment again
+sent_ids = set()  # Set to track already sent comment IDs
 
-# Function to fetch video info (title, publish date, views, likes)
+# Function to get video metadata (title, publish date, views, likes)
 def get_video_info(video_id):
     ydl_opts = {}
     url = f"https://www.youtube.com/watch?v={video_id}"
@@ -38,9 +38,11 @@ def get_video_info(video_id):
             "like_count": info.get("like_count", 0),
         }
 
-# Function to stream comments and send to Kafka
-def stream_comments(video_id, video_info):
+# Function to fetch and send comments to Kafka (max 1500 per video)
+def stream_comments(video_id, video_info, max_comments=1500):
+    print(f"📺 Streaming comments from: {video_id}")
     comments = downloader.get_comments_from_url(f"https://www.youtube.com/watch?v={video_id}")
+    count = 0
     for comment in comments:
         if comment["cid"] not in sent_ids:
             sent_ids.add(comment["cid"])
@@ -54,14 +56,21 @@ def stream_comments(video_id, video_info):
             }
             print(f"📤 Sending to Kafka: {data}")
             producer.send("youtube-comments", value=data)
-            time.sleep(1)  # wait a bit between sends
+            count += 1
+            if count >= max_comments:
+                print(f"✅ Sent {count} comments for {video_id}")
+                break
+            time.sleep(1)  # Throttle the sending
+    print(f"🔚 Done with video: {video_id}\n")
 
-# Main loop
+# Main loop to fetch comments from all videos
 while True:
     for video_id in VIDEO_IDS:
-        print(f"🔁 Fetching new comments from video: {video_id}")
-        # Fetch video metadata
-        video_info = get_video_info(video_id)
-        # Stream comments
-        stream_comments(video_id, video_info)
-        time.sleep(10)  # wait 10 seconds between videos
+        try:
+            print(f"🔁 Fetching new comments from video: {video_id}")
+            video_info = get_video_info(video_id)
+            stream_comments(video_id, video_info, max_comments=1500)
+            time.sleep(10)  # Wait between videos
+        except Exception as e:
+            print(f"❌ Error processing video {video_id}: {e}")
+            time.sleep(5)  # Wait before retrying next video

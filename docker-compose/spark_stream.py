@@ -15,9 +15,9 @@ spark = SparkSession.builder \
 
 spark.sparkContext.setLogLevel("WARN")
 
-# Load vectorizer and SVM model
+# Load vectorizer and model
 vectorizer = joblib.load("/opt/bitnami/spark/work/model/tfidf_vectorizer.pkl")
-svm_model = joblib.load("/opt/bitnami/spark/work/model/nb_sentiment_model.pkl")
+svm_model = joblib.load("/opt/bitnami/spark/work/model/lr_sentiment_model.pkl")
 
 # Broadcast both
 vectorizer_broadcast = spark.sparkContext.broadcast(vectorizer)
@@ -93,7 +93,7 @@ es_query = result_df.writeStream \
     .option("es.nodes", "elasticsearch") \
     .option("es.port", "9200") \
     .option("checkpointLocation", "/tmp/spark_checkpoint") \
-    .option("es.resource", "youtube-comments1-index") \
+    .option("es.resource", "youtube-comments4-index") \
     .start()
 
 # Wait for both streams
