@@ -93,7 +93,7 @@ es_query = result_df.writeStream \
     .option("es.nodes", "elasticsearch") \
     .option("es.port", "9200") \
     .option("checkpointLocation", "/tmp/spark_checkpoint") \
-    .option("es.resource", "youtube-comments4-index") \
+    .option("es.resource", "youtube-comments6-index") \
     .start()
 
 # Wait for both streams

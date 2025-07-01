@@ -38,8 +38,8 @@ def get_video_info(video_id):
             "like_count": info.get("like_count", 0),
         }
 
-# Function to fetch and send comments to Kafka (max 1500 per video)
-def stream_comments(video_id, video_info, max_comments=1500):
+# Function to fetch and send comments to Kafka (max 1000 per video)
+def stream_comments(video_id, video_info, max_comments=1000):
     print(f"📺 Streaming comments from: {video_id}")
     comments = downloader.get_comments_from_url(f"https://www.youtube.com/watch?v={video_id}")
     count = 0
@@ -69,7 +69,7 @@ while True:
         try:
             print(f"🔁 Fetching new comments from video: {video_id}")
             video_info = get_video_info(video_id)
-            stream_comments(video_id, video_info, max_comments=1500)
+            stream_comments(video_id, video_info, max_comments=1000)
             time.sleep(10)  # Wait between videos
         except Exception as e:
             print(f"❌ Error processing video {video_id}: {e}")
